@@ -1,0 +1,15 @@
+{
+  "name": "ed-test",
+  "version": "1.0.0",
+  "description": "Test projet pour @papillonapp/ed-core",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.13.5",
+    "axios-cookiejar-support": "^6.0.5",
+    "tough-cookie": "^6.0.0"
+  }
+}
