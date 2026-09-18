@@ -280,6 +280,22 @@ export class EcoleDirecteClient {
     return res.data;
   }
 
+  async fetchCommandesPassage(studentId) {
+    const res = await this.client.post(
+      `${BASE}/v3/E/${studentId}/commandesPassage.awp?verbe=get&v=${VERSION}`,
+      formData({}),
+      {
+        headers: this.commonHeaders({
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-Token": this.state.xToken,
+          "2fa-Token": this.state.twoFaToken
+        })
+      }
+    );
+    this.updateTokensFromHeaders(res.headers);
+    return res.data;
+  }
+
   async fetchCloud(entityId, { type = "W", profondeur = 100, folder = "" } = {}) {
     const qs = [`verbe=get`, `v=${VERSION}`];
     if (folder) qs.push(`idFolder=${folder}`);

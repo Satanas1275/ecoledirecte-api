@@ -12,6 +12,9 @@ const SECTION_ALIASES = {
   notes: "notes",
   messages: "messages",
   message: "message",
+  commandes: "commandes",
+  commandespassage: "commandes",
+  cafeteria: "commandes",
   cloud: "cloud",
   download: "download",
   session: "session"
@@ -27,6 +30,9 @@ const BOOL_FLAGS = new Set([
   "--notes",
   "--messages",
   "--message",
+  "--commandes",
+  "--commandespassage",
+  "--cafeteria",
   "--cloud",
   "--session",
   "--help",
@@ -90,7 +96,7 @@ function requestedSections(flags, values) {
     if (values["download"]) {
       sections = ["download"];
     } else {
-      sections = ["cdt", "notes", "messages", "message", "cloud"];
+      sections = ["cdt", "notes", "messages", "message", "cloud", "commandes"];
       if (process.env.ED_INCLUDE_SESSION === "1") sections.push("session");
     }
   }
@@ -111,6 +117,7 @@ Sections demandées (seul ce qui est demandé est affiché):
   --messages               liste des messages
   --message                message précis (--message-id)
   --cloud                  cloud (fichiers; essaie plusieurs types d'entité)
+  --commandes              commandes passées (cafétéria)
   --session                session exportée
   --download <type>:<id>   télécharge un fichier (ex: --download PIECE_JOINTE:9780)
                            types: CLOUD, PIECE_JOINTE, FICHIER_CDT, FICHIER_MENU_RESTAURATION…
@@ -257,6 +264,9 @@ async function main() {
         break;
       case "notes":
         out.notes = await api.fetchNotes(studentId);
+        break;
+      case "commandes":
+        out.commandes = await api.fetchCommandesPassage(studentId);
         break;
       case "messages":
         out.messages = await api.fetchMessages(studentId, { itemsPerPage: config.messageLimit });

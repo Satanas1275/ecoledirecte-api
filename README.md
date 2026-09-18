@@ -9,6 +9,7 @@ Client Node.js (ESM) pour automatiser l'auth EcoleDirecte et récupérer:
 - messages (liste)
 - message précis (par `id`)
 - cloud (fichiers)
+- commandes passées (cafétéria)
 
 Le projet expose:
 
@@ -42,13 +43,14 @@ Seules les sections demandées sont récupérées et affichées:
 | `--messages` | liste des messages |
 | `--message` | message précis |
 | `--cloud` | cloud (fichiers) |
+| `--commandes` | commandes passées (cafétéria) |
 | `--download <type>:<id>` | télécharge un fichier |
 | `--session` | session exportée |
 | `--help` | aide |
 
 `--download` prend un type et un id (`PIECE_JOINTE:9780`, `CLOUD:05CLOUD09...`, `FICHIER_CDT:8651`, …). Seul `--download` spécifié = seule section exécutée.
 
-Sans flag, la valeur de `ED_FETCH` est utilisée (défaut: `cdt,notes,messages,message,cloud`).
+Sans flag, la valeur de `ED_FETCH` est utilisée (défaut: `cdt,notes,messages,message,cloud,commandes`).
 
 ### Flags d'options
 
@@ -203,6 +205,17 @@ Retourne la réponse `login.awp` complète.
 
 - Endpoint: `/v3/eleves/{id}/messages/{messageId}.awp?verbe=get&mode={mode}&v=4.95.2`
 - Payload: `{ anneeMessages }`
+
+### `fetchCommandesPassage(studentId)`
+
+Récupère les commandes passées à la caféteria (historique + points de passage + créneaux).
+
+- `studentId`: id du compte élève (`typeCompte === "E"`)
+- Endpoint: `/v3/E/{id}/commandesPassage.awp?verbe=get&v=4.95.2`
+- Payload: `{}` (vide, comme le front)
+- Réponse: `data.historiqueCommandes` (ex `{ idCommande, numeroCommande, creneau, date, articles, pointDePassage }`), `data.tabPointsDePassage`, `data.creneaux`, `data.joursFeries`
+
+> Passer une commande (`v3/.../commandesPassage.awp?verbe=post`) nécessite d'abord `commandesPassage/pointsDePassage/{id}/{date}.awp?verbe=get` pour récupérer les menus du jour, puis un POST volumineux (panier complet) — plus complexe, non implémenté pour l'instant.
 
 ### `fetchCloud(entityId, options = {})`
 
