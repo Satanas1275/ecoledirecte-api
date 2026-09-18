@@ -280,6 +280,50 @@ export class EcoleDirecteClient {
     return res.data;
   }
 
+  async fetchCloud(entityId, { type = "W", profondeur = 100, folder = "" } = {}) {
+    const qs = [`verbe=get`, `v=${VERSION}`];
+    if (folder) qs.push(`idFolder=${folder}`);
+    const res = await this.client.post(
+      `${BASE}/v3/cloud/${type}/${entityId}.awp?${qs.join("&")}`,
+      formData({ profondeur }),
+      {
+        headers: this.commonHeaders({
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-Token": this.state.xToken,
+          "2fa-Token": this.state.twoFaToken
+        })
+      }
+    );
+    this.updateTokensFromHeaders(res.headers);
+    return res.data;
+  }
+
+  async downloadFile(fileId, { type = "CLOUD", year = "" } = {}) {
+    const params = [`verbe=get`, `fichierId=${encodeURIComponent(fileId)}`, `leTypeDeFichier=${type}`];
+    if (year) params.push(`anneeMessages=${year}`);
+    const res = await this.client.post(
+      `${BASE}/v3/telechargement.awp?${params.join("&")}&v=${VERSION}`,
+      formData({ forceDownload: 0 }),
+      {
+        headers: this.commonHeaders({
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-Token": this.state.xToken,
+          "2fa-Token": this.state.twoFaToken
+        }),
+        responseType: "arraybuffer"
+      }
+    );
+    this.updateTokensFromHeaders(res.headers);
+    const buffer = Buffer.from(res.data);
+    const disposition = res.headers["content-disposition"] ?? "";
+    const match = /filename="?([^";]+)"?/i.exec(disposition);
+    return { buffer, filename: match?.[1] ?? "" };
+  }
+
+  async downloadCloudFile(fileId, options = {}) {
+    return this.downloadFile(fileId, options);
+  }
+
   async exportSession() {
     const cookieJar = await this.jar.serialize();
     return {

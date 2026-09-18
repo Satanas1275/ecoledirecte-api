@@ -8,6 +8,7 @@ Client Node.js (ESM) pour automatiser l'auth EcoleDirecte et récupérer:
 - notes
 - messages (liste)
 - message précis (par `id`)
+- cloud (fichiers)
 
 Le projet expose:
 
@@ -22,50 +23,96 @@ npm install
 
 ## Utilisation rapide (CLI)
 
-Le script principal est `index.js`.
+Le script principal est `index.js`. Il n'affiche **que** ce que tu demandes.
 
 ### Variables obligatoires
 
 - `ED_USER`: identifiant EcoleDirecte
 - `ED_PASS`: mot de passe EcoleDirecte
 
-### Variables optionnelles
+### Flags de sections
 
-- `ED_FETCH`: sections à récupérer (liste séparée par virgules)
-  - valeurs possibles: `login,timetable,cahierDeTexte,notes,messages,message`
-  - défaut si absent: `login,timetable,cahierDeTexte,notes,messages`
-- `ED_QCM_CHOICE`: réponse QCM si 2FA/QCM (index 1-based, valeur décodée ou base64)
-- `ED_START_DATE`: date début EDT (`YYYY-MM-DD`)
-- `ED_END_DATE`: date fin EDT (`YYYY-MM-DD`)
-- `ED_MESSAGE_ID`: id du message à récupérer (obligatoire si `ED_FETCH` contient `message`)
-- `ED_MESSAGE_MODE`: `destinataire` (défaut) ou `expediteur`
-- `ED_ANNEE_MESSAGES`: année messagerie (défaut `2025-2026`)
-- `ED_MESSAGES_LIMIT`: nombre de messages dans la liste `messages` (défaut `100`)
+Seules les sections demandées sont récupérées et affichées:
+
+| Flag | Section |
+| --- | --- |
+| `--edt` / `--timetable` | emploi du temps |
+| `--cdt` / `--cahier-de-texte` | cahier de texte |
+| `--notes` | notes |
+| `--messages` | liste des messages |
+| `--message` | message précis |
+| `--cloud` | cloud (fichiers) |
+| `--download <type>:<id>` | télécharge un fichier |
+| `--session` | session exportée |
+| `--help` | aide |
+
+`--download` prend un type et un id (`PIECE_JOINTE:9780`, `CLOUD:05CLOUD09...`, `FICHIER_CDT:8651`, …). Seul `--download` spécifié = seule section exécutée.
+
+Sans flag, la valeur de `ED_FETCH` est utilisée (défaut: `cdt,notes,messages,message,cloud`).
+
+### Flags d'options
+
+Chaque option existe aussi en variable d'environnement (la variable est utilisée si le flag est absent):
+
+| Flag | Env | Défaut |
+| --- | --- | --- |
+| `--message-id <id>` | `ED_MESSAGE_ID` | `11780` |
+| `--message-mode <mode>` | `ED_MESSAGE_MODE` | `destinataire` |
+| `--annee-messages <YYYY-YYYY>` | `ED_ANNEE_MESSAGES` | `2025-2026` |
+| `--messages-limit <n>` | `ED_MESSAGES_LIMIT` | `100` |
+| `--start-date <YYYY-MM-DD>` | `ED_START_DATE` | (requis pour `--edt`) |
+| `--end-date <YYYY-MM-DD>` | `ED_END_DATE` | (requis pour `--edt`) |
+| `--cloud-type <W\|E>` | `ED_CLOUD_TYPE` | `W` |
+| `--cloud-depth <n>` | `ED_CLOUD_DEPTH` | `100` |
+| `--cloud-id <id>` | `ED_CLOUD_ID` | premier compte élève |
+| `--cloud-folder <chemin>` | `ED_CLOUD_FOLDER` | `""` |
+| `--download-name <nom>` | `ED_DOWNLOAD_NAME` | nom serveur (`content-disposition`) |
+| `--download-year <YYYY-YYYY>` | `ED_DOWNLOAD_YEAR` | `""` |
+
+Auth: `ED_QCM_CHOICE` (réponse QCM, sinon prompt interactif).
 
 ### Exemples
 
-Récupérer tout (sauf message unique):
+Cloud uniquement:
 
 ```bash
-ED_USER="..." ED_PASS="..." npm start
+ED_USER="..." ED_PASS="..." node index.js --cloud
 ```
 
-Récupérer uniquement un message (`id=11780`):
+Cloud d'un dossier précis (l'id d'entité cloud peut différer de l'id du compte élève):
 
 ```bash
-ED_USER="..." ED_PASS="..." ED_FETCH="message" ED_MESSAGE_ID="11780" npm start
+ED_USER="..." ED_PASS="..." node index.js --cloud --cloud-id=1036 --cloud-folder='\Français\OE1'
 ```
 
-Récupérer liste des messages + un message précis:
+Notes + messages:
+
+```bash
+ED_USER="..." ED_PASS="..." node index.js --notes --messages
+```
+
+EDT sur 1 semaine:
+
+```bash
+ED_USER="..." ED_PASS="..." node index.js --edt --start-date=2026-09-07 --end-date=2026-09-13
+```
+
+Un message précis:
+
+```bash
+ED_USER="..." ED_PASS="..." node index.js --message --message-id=11780
+```
+
+Télécharger une pièce jointe d'un message (`id` trouvé dans la liste `--messages`):
+
+```bash
+ED_USER="..." ED_PASS="..." node index.js --download PIECE_JOINTE:9780 --download-name BACpro-1eres-CIEL.jpg
+```
+
+Équivalent via `ED_FETCH` (liste séparée par virgules):
 
 ```bash
 ED_USER="..." ED_PASS="..." ED_FETCH="messages,message" ED_MESSAGE_ID="11780" npm start
-```
-
-Récupérer uniquement 1 message dans la liste inbox (le plus récent):
-
-```bash
-ED_USER="..." ED_PASS="..." ED_FETCH="messages" ED_MESSAGES_LIMIT="1" npm start
 ```
 
 ## Sortie JSON
@@ -156,6 +203,33 @@ Retourne la réponse `login.awp` complète.
 
 - Endpoint: `/v3/eleves/{id}/messages/{messageId}.awp?verbe=get&mode={mode}&v=4.95.2`
 - Payload: `{ anneeMessages }`
+
+### `fetchCloud(entityId, options = {})`
+
+Récupère l'arborescence des fichiers du cloud.
+
+- `entityId`: id de l'**entité cloud** (`W/1036`), **différent** de l'id du compte élève (ex `6928`) — à passer via `--cloud-id` / `ED_CLOUD_ID` si `--cloud` échoue
+- `options.type`: `W` (espace de travail / cloud de l'utilisateur connecté, défaut) ou `E` (élève précis)
+- `options.profondeur`: profondeur des dossiers chargés (défaut `100`)
+- `options.folder`: dossier relatif pour naviguer (défaut `""`), ex `\Français\OE1` → ajoute `&idFolder={folder}`
+- Endpoint: `/v3/cloud/{type}/{entityId}.awp?verbe=get[&idFolder=...]&v=4.95.2`
+- Payload: `{ profondeur }`
+
+La réponse contient une arborescence de nœuds `folder`/`file` (`libelle`, `date`, `taille`, `id`, `children`…). Pour télécharger un fichier, récupère son `id` (chemin complet) et passe-le à `downloadFile`.
+
+> Note: `type` `W` correspond à l'« espace de travail » de l'utilisateur connecté (c'est ce que le front officiel utilise pour `Mon Cloud`). Pour un élève précis, `E` est le type documenté. Le CLI `--cloud` essaie les deux automatiquement.
+
+### `downloadFile(fileId, options = {})`
+
+Télécharge n'importe quel fichier et retourne `{ buffer, filename }` (`filename` = nom serveur extrait de `content-disposition`, ex `Act_1.pdf`, ou `""`).
+
+- `fileId`: chemin (`id` d'un nœud `file` du cloud) ou id du fichier (`id` d'une `PIECE_JOINTE` dans un message, `id` d'un devoir…)
+- `options.type`: type de ressource (défaut `CLOUD`; peut être `PIECE_JOINTE`, `FICHIER_CDT`, `FICHIER_MENU_RESTAURATION`…)
+- `options.year`: année scolaire si pièce jointe archivée (ex `2025-2026`)
+- Endpoint: `/v3/telechargement.awp?verbe=get&fichierId={id}&leTypeDeFichier={type}&v=4.95.2`
+- Payload: `{ forceDownload: 0 }`
+
+Le CLI enregistre le fichier sous `--download-name`, sinon sous le nom serveur (`filename`), sinon le dernier segment du chemin. `downloadCloudFile(fileId, options)` est conservé comme alias de `downloadFile`.
 
 ### Helpers exportés
 
